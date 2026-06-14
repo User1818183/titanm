@@ -37,4 +37,15 @@ uint32_t leak_kb(::nugget::app::keymaster::KeyBlob* keyblob,
                  ::nugget::app::keymaster::KeyParameters* params,
                  int64_t keysize);
 
+// AVB Command prototypes
+int callAvbCmd_GetRollbackIndex(const char* slot);
+
+int callAvbCmd_SetRollbackIndex(const char* slot, uint64_t index);
+
+int callAvbCmd_ReadLockState();
+
+int callAvbCmd_WriteLockState(bool locked);
+
+int callAvbCmd_GetVersion();
+
 #endif
