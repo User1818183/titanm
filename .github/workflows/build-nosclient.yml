@@ -1,0 +1,48 @@
+name: Build nosclient
+
+on:
+  push:
+    paths:
+      - ".github/workflows/build-nosclient.yml"
+      - "nugget_toolkit/**"
+      - ".gitmodules"
+  pull_request:
+    paths:
+      - ".github/workflows/build-nosclient.yml"
+      - "nugget_toolkit/**"
+      - ".gitmodules"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android arm64-v8a
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build Docker image
+        run: docker build -t nosclient-builder ./nugget_toolkit
+
+      - name: Build nosclient
+        run: |
+          mkdir -p nugget_toolkit/out
+          docker run --rm \
+            -v "${{ github.workspace }}/nugget_toolkit/out:/out" \
+            nosclient-builder
+          test -f nugget_toolkit/out/android/nosclient
+
+      - name: Upload nosclient artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nosclient-android-arm64-v8a
+          path: |
+            nugget_toolkit/out/android/nosclient
+            nugget_toolkit/out/android/libparser.so
+          if-no-files-found: error

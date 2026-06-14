@@ -20,6 +20,16 @@ void printHelp(char *arg) {
   cerr << "Usage:" << endl;
   cerr << arg << " cmd <task> <command> [json string for command arguments]"
        << std::endl;
+  cerr << arg << " avb <command> [json string for command arguments]"
+       << std::endl;
+  cerr << "AVB examples:" << std::endl;
+  cerr << arg << " avb GetState" << std::endl;
+  cerr << arg << " avb GetLock {\"lock\":\"DEVICE\"}" << std::endl;
+  cerr << arg << " avb SetDeviceLock {\"locked\":1}" << std::endl;
+  cerr << arg << " avb SetBootLock {\"locked\":0}" << std::endl;
+  cerr << arg << " avb Load {\"slot\":0}" << std::endl;
+  cerr << arg << " avb Store {\"slot\":0}" << std::endl;
+  cerr << arg << " avb Reset {\"kind\":\"LOCKS\"}" << std::endl;
   cerr << arg << " keyblob" << std::endl;
   cerr << arg << " fuzz [--verbose|-v]" << std::endl;
   cerr << arg << " reset" << std::endl;
@@ -33,6 +43,7 @@ int main(int argc, char *argv[]) {
   int c;
   enum class mode {
     cmd,
+    avb,
     keyblob,
     fuzz,
     reset,
@@ -50,6 +61,7 @@ int main(int argc, char *argv[]) {
 
   static unordered_map<string, mode> mode_map{
       {string("cmd"), mode::cmd},        {string("keyblob"), mode::keyblob},
+      {string("avb"), mode::avb},        {string("AVB"), mode::avb},
       {string("fuzz"), mode::fuzz},      {string("reset"), mode::reset},
       {string("leak_old"), mode::leak_old},      {string("leak"), mode::leak},
       {string("write"), mode::write},    {string("help"), mode::help},
@@ -160,6 +172,33 @@ int main(int argc, char *argv[]) {
       }
 
       return callNosCmd(mode_args == 2 ? nullptr : argv[4], app, cmd);
+
+      break;
+    }
+    case mode::avb: {
+      // Shortcut for AVBCmdsId-backed commands.
+      // Example: nosclient avb GetLock {\"lock\":\"DEVICE\"}
+
+      if (mode_args < 1) {
+        printHelp(argv[0]);
+        break;
+      }
+
+      auto app = NosApp::findNosAppByName("AVB");
+      if (!app) {
+        std::cerr << "AVB app is not registered" << std::endl;
+        return 1;
+      }
+
+      auto cmd = app->findNosCmdByName(argv[2]);
+      if (!cmd) {
+        std::cerr << "Wrong AVB cmd name: " << argv[2] << std::endl;
+        std::cerr << "Available AVB cmds:" << std::endl;
+        app->printCmdList();
+        return 1;
+      }
+
+      return callNosCmd(mode_args == 1 ? nullptr : argv[3], app, cmd);
 
       break;
     }
