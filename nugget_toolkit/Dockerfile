@@ -1,11 +1,11 @@
 FROM debian:10
 
-ENV ANDROID_NDK_HOME /opt/android-ndk
-ENV NDK_ROOT /opt/android-ndk
-ENV ANDROID_NDK_VERSION r21e
+ENV ANDROID_NDK_HOME=/opt/android-ndk
+ENV NDK_ROOT=/opt/android-ndk
+ENV ANDROID_NDK_VERSION=r21e
 
-RUN apt-get update -yq \
-&& apt-get install -yq wget unzip
+RUN apt-get update -yq && \
+    apt-get install -yq wget unzip
 
 # ------------------------------------------------------
 # --- Android NDK
@@ -23,17 +23,17 @@ RUN mkdir /opt/android-ndk-tmp && \
     rm -rf /opt/android-ndk-tmp
 
 # add to PATH
-ENV PATH ${PATH}:${ANDROID_NDK_HOME}
+ENV PATH=${PATH}:${ANDROID_NDK_HOME}
 
 # ------------------------------------------------------
 # --- Other dependencies
 
-RUN apt-get install -yq clang cmake make \
-&& apt-get install -yq zlib1g-dev \
-&& apt-get clean
+RUN apt-get install -yq clang cmake make && \
+    apt-get install -yq zlib1g-dev && \
+    apt-get clean
 
 COPY . /nostoolkit
 
 WORKDIR /nostoolkit
 
-CMD bash /nostoolkit/buildAll.sh
+CMD ["bash", "/nostoolkit/buildAll.sh"]
