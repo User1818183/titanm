@@ -1,8 +1,12 @@
 #include <nos/NuggetClient.h>
 #include <nos/device.h>
+#include <nostypes.h>
+#include <nosutils.h>
 #include <stdint.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <google/protobuf/util/json_util.h>
 
 #include <array>
 #include <cerrno>
@@ -18,6 +22,9 @@
 #include <vector>
 
 using nos::NuggetClient;
+using namespace google::protobuf;
+using namespace google::protobuf::util;
+using namespace nostypes;
 
 namespace {
 
@@ -142,7 +149,17 @@ void printHelp(const char *arg) {
   std::cerr << "Usage:" << std::endl;
   std::cerr << arg << " reset" << std::endl;
   std::cerr << arg << " call <app_id> <arg> [hex_request]" << std::endl;
+  std::cerr << arg << " avb <command> [json string for command arguments]"
+            << std::endl;
   std::cerr << arg << " daemon" << std::endl;
+  std::cerr << "AVB examples:" << std::endl;
+  std::cerr << arg << " avb GetState" << std::endl;
+  std::cerr << arg << " avb GetLock {\"lock\":\"DEVICE\"}" << std::endl;
+  std::cerr << arg << " avb SetDeviceLock {\"locked\":1}" << std::endl;
+  std::cerr << arg << " avb SetBootLock {\"locked\":0}" << std::endl;
+  std::cerr << arg << " avb Load {\"slot\":0}" << std::endl;
+  std::cerr << arg << " avb Store {\"slot\":0}" << std::endl;
+  std::cerr << arg << " avb Reset {\"kind\":\"LOCKS\"}" << std::endl;
 }
 
 bool parseInt32(const char *value, int32_t *out) {
@@ -156,6 +173,67 @@ bool parseInt32(const char *value, int32_t *out) {
   }
   *out = static_cast<int32_t>(parsed);
   return true;
+}
+
+void printRequestDefinition(Message *msg) {
+  std::cerr << "Missing arguments: " << std::endl;
+  const auto desc = msg->GetDescriptor();
+  std::cerr << "{" << std::endl;
+  for (int i = 0; i < desc->field_count(); i++) {
+    const auto field = desc->field(i);
+    std::cerr << '\t' << field->name() << ": " << field->cpp_type_name()
+              << std::endl;
+  }
+  std::cerr << "}" << std::endl;
+}
+
+int callNosCommand(CitadelProxy *proxy, const char *body, const NosApp *app,
+                   const NosCmd *cmd) {
+  auto req = cmd->request->New();
+  auto res = cmd->reply->New();
+  req->CopyFrom(*cmd->request);
+  res->CopyFrom(*cmd->reply);
+
+  const auto num_fields = req->GetDescriptor()->field_count();
+  if ((num_fields > 0) && !body) {
+    printRequestDefinition(req);
+  }
+
+  if (body) {
+    const auto status = JsonStringToMessage(body, req);
+    if (status.ok()) {
+      std::cout << "Request:" << std::endl;
+      req->PrintDebugString();
+      std::cout << std::endl;
+    } else {
+      std::cerr << "Json parsing issue: " << status << std::endl;
+      delete req;
+      delete res;
+      return 1;
+    }
+  }
+
+  std::string serialized_request;
+  req->SerializeToString(&serialized_request);
+  std::vector<uint8_t> request(serialized_request.begin(),
+                               serialized_request.end());
+  std::vector<uint8_t> response(MAX_RESPONSE_SIZE);
+
+  const uint32_t rv = proxy->callApp(app->id, cmd->id, request, &response);
+
+  const std::string response_str(response.begin(), response.end());
+  res->ParseFromString(response_str);
+  std::cout << "Response:" << std::endl;
+  res->PrintDebugString();
+  std::cout << "Return code: " << rv << std::endl;
+
+  initNosPrinter();
+  printNosCommand(app->name, cmd->name, *req, *res);
+
+  delete req;
+  delete res;
+
+  return rv;
 }
 
 }  // namespace
@@ -212,6 +290,35 @@ int main(int argc, char *argv[]) {
     printHex(response);
     citadel.Close();
     return status == 0 ? 0 : 1;
+  }
+
+  if (command == "avb" || command == "AVB") {
+    if (argc < 3 || argc > 4) {
+      printHelp(argv[0]);
+      citadel.Close();
+      return 1;
+    }
+
+    const auto app = NosApp::findNosAppByName("AVB");
+    if (!app) {
+      std::cerr << "AVB app is not registered" << std::endl;
+      citadel.Close();
+      return 1;
+    }
+
+    const auto cmd = app->findNosCmdByName(argv[2]);
+    if (!cmd) {
+      std::cerr << "Wrong AVB cmd name: " << argv[2] << std::endl;
+      std::cerr << "Available AVB cmds:" << std::endl;
+      app->printCmdList();
+      citadel.Close();
+      return 1;
+    }
+
+    const int rv = callNosCommand(&proxy, argc == 3 ? nullptr : argv[3], app,
+                                  cmd);
+    citadel.Close();
+    return rv;
   }
 
   if (command == "daemon") {
