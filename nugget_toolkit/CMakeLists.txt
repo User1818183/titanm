@@ -64,4 +64,10 @@ target_include_directories (nosclient PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${nos_p
 
 TARGET_LINK_LIBRARIES(nosclient android log protobuf nostypes nos nos_datagram nos_transport pm sqlite)
 
+add_executable (nosclient2 client/nosclient2.cpp)
+
+target_include_directories (nosclient2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} jni/include nostypes/ external/libnos/nugget/include ${libnos_include_dirs} client)
+
+TARGET_LINK_LIBRARIES(nosclient2 android log nos nos_datagram nos_transport)
+
 endif()
