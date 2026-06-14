@@ -3,10 +3,28 @@
 
 #include <nostypes.h>
 #include <stdint.h>
+#include <sys/stat.h>
 
 #include <vector>
 
-#define CITADEL_DEV "/dev/citadel0"
+#define DEV_CITADEL "/dev/citadel0"
+#define DEV_DAUNTLESS "/dev/gsc0"
+
+static const char *default_device(void) {
+  struct stat statbuf;
+
+  if (stat(DEV_CITADEL, &statbuf) == 0) {
+    return DEV_CITADEL;
+  }
+
+  if (stat(DEV_DAUNTLESS, &statbuf) == 0) {
+    return DEV_DAUNTLESS;
+  }
+
+  return 0;
+}
+
+#define CITADEL_DEV default_device()
 
 #define MAX_RESPONSE_SIZE 2048
 
