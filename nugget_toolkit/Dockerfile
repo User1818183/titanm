@@ -4,7 +4,10 @@ ENV ANDROID_NDK_HOME=/opt/android-ndk
 ENV NDK_ROOT=/opt/android-ndk
 ENV ANDROID_NDK_VERSION=r21e
 
-RUN apt-get update -yq && \
+RUN sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g' /etc/apt/sources.list && \
+    sed -i '/buster-updates/d' /etc/apt/sources.list
+
+RUN apt-get -o Acquire::Check-Valid-Until=false update -yq && \
     apt-get install -yq wget unzip
 
 # ------------------------------------------------------
