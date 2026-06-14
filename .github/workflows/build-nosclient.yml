@@ -37,6 +37,7 @@ jobs:
             -v "${{ github.workspace }}/nugget_toolkit/out:/out" \
             nosclient-builder
           test -f nugget_toolkit/out/android/nosclient
+          test -f nugget_toolkit/out/android/nosclient2
 
       - name: Upload nosclient artifact
         uses: actions/upload-artifact@v4
@@ -44,5 +45,6 @@ jobs:
           name: nosclient-android-arm64-v8a
           path: |
             nugget_toolkit/out/android/nosclient
+            nugget_toolkit/out/android/nosclient2
             nugget_toolkit/out/android/libparser.so
           if-no-files-found: error
